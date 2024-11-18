@@ -1,7 +1,9 @@
-import requests
+import requests # 웹 크롤링
 from bs4 import BeautifulSoup
-import pandas as pd
-import sys
+import pandas as pd # 데이터셋 분석
+import sys # 인코딩
+import seaborn as sns # 데이터 시각화
+import matplotlib.pyplot as plt
 
 url = "https://www.transfermarkt.com/premier-league/torschuetzenliste/wettbewerb/GB1/saison_id/2023/altersklasse/alle/detailpos//plus/1" # 웹 크롤링 주소
 
@@ -23,17 +25,19 @@ for row in table_rows:
     rank = row.find("td", {"class": "zentriert"}).get_text(strip=True)
     player_name = row.find("td", {"class": "hauptlink"}).get_text(strip=True) # 이름
     position = row.find_all("td")[1].find_all("tr")[1].find_all("td")[0].get_text(strip=True) # 포지션
-    appearances = row.find_all("td")[8].get_text(strip=True) # 경기 수
-    minutes_played = row.find_all("td")[11].get_text(strip=True) # 출전 시간
-    minutes_per_goal = row.find_all("td")[12].get_text(strip=True) # 득점 당 평균 시간
-    goals_per_match = row.find_all("td")[13].get_text(strip=True) # 경기 당 평균 득점
-    goals = row.find_all("td")[14].get_text(strip=True) # 득점 수
+    appearances = int(row.find_all("td")[8].get_text(strip=True)) # 경기 수
+    penalty_kicks = int(row.find_all("td")[10].get_text(strip=True)) # 페널티 킥 수
+    minutes_played = float(row.find_all("td")[11].get_text(strip=True).replace("'", "")) # 출전 시간
+    minutes_per_goal = int(row.find_all("td")[12].get_text(strip=True).replace("'", "")) # 득점 당 평균 시간
+    goals_per_match = float(row.find_all("td")[13].get_text(strip=True)) # 경기 당 평균 득점
+    goals = int(row.find_all("td")[14].get_text(strip=True)) # 득점 수
     
     data.append({ # 데이터 리스트에 추가
         "Rank" : rank,
         "Player Name": player_name,
         "Position": position,
         "Appearances" : appearances,
+        "Penalty kicks" : penalty_kicks,
         "Minutes Played": minutes_played,
         "Minutes per goal" : minutes_per_goal,
         "Goals per Match": goals_per_match,
@@ -44,4 +48,8 @@ df = pd.DataFrame(data) # DataFrame으로 변환
 df.set_index("Rank", inplace = True) # Rank를 index로 설정
 
 sys.stdout.reconfigure(encoding='utf-8') # 인코딩 설정
-print(df.head(10))
+#print(df.head(10))
+
+# 데이터 형식 변환 및 기본 통계 출력
+print(df.info())
+print(df.describe())
