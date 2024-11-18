@@ -50,6 +50,41 @@ df.set_index("Rank", inplace = True) # Rank를 index로 설정
 sys.stdout.reconfigure(encoding='utf-8') # 인코딩 설정
 #print(df.head(10))
 
-# 데이터 형식 변환 및 기본 통계 출력
+# 데이터 정보 출력
+print("데이터프레임 정보:")
 print(df.info())
+print("\n기본 통계:")
 print(df.describe())
+
+# 포지션별 데이터 그룹화 및 통계 분석
+# 1. 포지션별 평균 득점
+grouped_position = df.groupby("Position")["Goals"].mean().sort_values(ascending=False)
+print("\n포지션별 평균 득점:")
+print(grouped_position)
+
+# 2. 포지션별 경기당 평균 득점
+grouped_goals_per_match = df.groupby("Position")["Goals per Match"].mean().sort_values(ascending=False)
+print("\n포지션별 경기당 평균 득점:")
+print(grouped_goals_per_match)
+
+# 3. 포지션별 득점과 출전 시간의 상관관계 분석
+grouped_correlation = df.groupby("Position")[["Goals", "Minutes Played"]].corr().iloc[0::2, -1]
+print("\n포지션별 득점과 출전 시간의 상관관계:")
+print(grouped_correlation)
+
+plt.rcParams['font.family'] = 'Malgun Gothic' # 한글 폰트 설정
+
+# 포지션별 평균 득점 시각화
+sns.barplot(
+    x=grouped_position.index,
+    y=grouped_position.values,
+    hue=grouped_position.index,  # x 변수를 hue로 지정
+    palette="viridis",
+    dodge=False
+)
+plt.legend([], [], frameon=False)  # 불필요한 범례 제거
+plt.title("포지션별 평균 득점")
+plt.xlabel("포지션")
+plt.ylabel("평균 득점")
+plt.xticks(rotation=45)
+plt.show()
