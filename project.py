@@ -89,7 +89,8 @@ print(grouped_goals_time)
 
 plt.rcParams['font.family'] = 'Malgun Gothic'  # 한글 폰트 설정
 
-# 시각화
+# 그래프 1: Goals per Match Group별 평균 득점 (Seaborn 바 차트)
+plt.figure(figsize=(10, 6))
 sns.barplot(
     x=grouped_goals_per_match.index,
     y=grouped_goals_per_match.values,
@@ -97,8 +98,17 @@ sns.barplot(
     palette="viridis",
     dodge=False
 )
-plt.legend([], [], frameon=False)  # 불필요한 범례 제거
 plt.title("경기당 평균 득점 그룹별 평균 득점")
 plt.xlabel("Goals per Match Group")
 plt.ylabel("평균 득점")
+plt.legend([], [], frameon=False)  # 불필요한 범례 제거
+plt.show()
+
+# 그래프 2: Appearances Group별 총 득점 (Matplotlib 바 차트)
+plt.figure(figsize=(10, 6))
+grouped_appearances.plot(kind="bar", color="teal")
+plt.title("출전 경기 수 그룹별 총 득점")
+plt.xlabel("Appearances Group")
+plt.ylabel("총 득점")
+plt.xticks(rotation=0)
 plt.show()
