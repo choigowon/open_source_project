@@ -50,41 +50,55 @@ df.set_index("Rank", inplace = True) # Rank를 index로 설정
 sys.stdout.reconfigure(encoding='utf-8') # 인코딩 설정
 #print(df.head(10))
 
-# 데이터 정보 출력
-print("데이터프레임 정보:")
-print(df.info())
-print("\n기본 통계:")
-print(df.describe())
+# 1. 경기당 평균 득점 기준 그룹화
+df["Goals per Match Group"] = pd.cut(
+    df["Goals per Match"], 
+    bins=[0, 0.5, 1.0, float('inf')], 
+    labels=["Low", "Medium", "High"]
+)
 
-# 포지션별 데이터 그룹화 및 통계 분석
-# 1. 포지션별 평균 득점
-grouped_position = df.groupby("Position")["Goals"].mean().sort_values(ascending=False)
-print("\n포지션별 평균 득점:")
-print(grouped_position)
+# 2. 출전 경기 수 기준 그룹화
+df["Appearances Group"] = pd.cut(
+    df["Appearances"], 
+    bins=[0, 10, 20, 30, float('inf')], 
+    labels=["Low", "Medium", "High", "Very High"]
+)
 
-# 2. 포지션별 경기당 평균 득점
-grouped_goals_per_match = df.groupby("Position")["Goals per Match"].mean().sort_values(ascending=False)
-print("\n포지션별 경기당 평균 득점:")
+# 3. 득점 수 기준 그룹화
+df["Goals Group"] = pd.cut(
+    df["Goals"], 
+    bins=[0, 10, 20, float('inf')], 
+    labels=["Contender", "Strong Contender", "Top Contender"]
+)
+
+# 그룹별 데이터 분석
+# 1. Goals per Match Group별 평균 득점
+grouped_goals_per_match = df.groupby("Goals per Match Group", observed=True)["Goals"].mean()
+print("\nGoals per Match Group별 평균 득점:")
 print(grouped_goals_per_match)
 
-# 3. 포지션별 득점과 출전 시간의 상관관계 분석
-grouped_correlation = df.groupby("Position")[["Goals", "Minutes Played"]].corr().iloc[0::2, -1]
-print("\n포지션별 득점과 출전 시간의 상관관계:")
-print(grouped_correlation)
+# 2. Appearances Group별 총 득점
+grouped_appearances = df.groupby("Appearances Group", observed=True)["Goals"].sum()
+print("\nAppearances Group별 총 득점:")
+print(grouped_appearances)
 
-plt.rcParams['font.family'] = 'Malgun Gothic' # 한글 폰트 설정
+# 3. Goals Group별 출전 시간 평균
+grouped_goals_time = df.groupby("Goals Group", observed=True)["Minutes Played"].mean()
+print("\nGoals Group별 평균 출전 시간:")
+print(grouped_goals_time)
 
-# 포지션별 평균 득점 시각화
+plt.rcParams['font.family'] = 'Malgun Gothic'  # 한글 폰트 설정
+
+# 시각화
 sns.barplot(
-    x=grouped_position.index,
-    y=grouped_position.values,
-    hue=grouped_position.index,  # x 변수를 hue로 지정
+    x=grouped_goals_per_match.index,
+    y=grouped_goals_per_match.values,
+    hue=grouped_goals_per_match.index,  # x 변수를 hue로 지정
     palette="viridis",
     dodge=False
 )
 plt.legend([], [], frameon=False)  # 불필요한 범례 제거
-plt.title("포지션별 평균 득점")
-plt.xlabel("포지션")
+plt.title("경기당 평균 득점 그룹별 평균 득점")
+plt.xlabel("Goals per Match Group")
 plt.ylabel("평균 득점")
-plt.xticks(rotation=45)
 plt.show()
