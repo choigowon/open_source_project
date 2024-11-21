@@ -48,28 +48,65 @@ df = pd.DataFrame(data) # DataFrame으로 변환
 df.set_index("Rank", inplace = True) # Rank를 index로 설정
 
 sys.stdout.reconfigure(encoding='utf-8') # 인코딩 설정
-#print(df.head(10))
 
-# 1. 경기당 평균 득점 기준 그룹화
-df["Goals per Match Group"] = pd.cut(
-    df["Goals per Match"], 
-    bins=[0, 0.5, 1.0, float('inf')], 
-    labels=["Low", "Medium", "High"]
-)
+# 'Rank'를 인덱스에서 열로 복구
+if "Rank" not in df.columns:
+    df.reset_index(inplace=True)
 
-# 2. 출전 경기 수 기준 그룹화
-df["Appearances Group"] = pd.cut(
-    df["Appearances"], 
-    bins=[0, 10, 20, 30, float('inf')], 
-    labels=["Low", "Medium", "High", "Very High"]
-)
+# 'Goals per Appearance' 열이 누락된 경우 재생성
+if "Goals per Appearance" not in df.columns:
+    df["Goals per Appearance"] = df["Goals"] / df["Appearances"]
 
-# 3. 득점 수 기준 그룹화
-df["Goals Group"] = pd.cut(
-    df["Goals"], 
-    bins=[0, 10, 20, float('inf')], 
-    labels=["Contender", "Strong Contender", "Top Contender"]
+# 필드 골 계산
+df["Field Goals"] = df["Goals"] - df["Penalty kicks"]
+
+# 1. 필드 골 기준 그룹화
+field_goal_stats = (
+    df.groupby("Field Goals")[["Minutes Played", "Player Name", "Rank"]]
+    .agg(
+        Total_Minutes=("Minutes Played", "sum"),
+        Avg_Minutes=("Minutes Played", "mean"),
+        Player_Count=("Player Name", "count"),
+        Players=("Player Name", lambda x: ", ".join(x)),
+        Ranks=("Rank", lambda x: ", ".join(map(str, x))),
+    )
 )
+print("\n필드 골 기준 통계:")
+print(field_goal_stats)
+
+# 2. 득점당 평균 시간 기준 그룹화
+df["Minutes per Goal"] = df["Minutes Played"] / df["Goals"]  # 재확인 및 생성
+
+minutes_per_goal_stats = (
+    df.groupby(pd.cut(df["Minutes per Goal"], bins=5, duplicates="drop"), observed=True)[
+        ["Goals", "Player Name", "Rank"]
+    ]
+    .agg(
+        Total_Goals=("Goals", "sum"),
+        Avg_Goals=("Goals", "mean"),
+        Player_Count=("Player Name", "count"),
+        Players=("Player Name", lambda x: ", ".join(x)),
+        Ranks=("Rank", lambda x: ", ".join(map(str, x))),
+    )
+)
+print("\n득점당 평균 시간 기준 통계:")
+print(minutes_per_goal_stats)
+
+# 3. 경기당 평균 득점 기준 그룹화
+goals_per_match_stats = (
+    df.groupby(pd.cut(df["Goals per Appearance"], bins=5, duplicates="drop"), observed=True)[
+        ["Goals", "Player Name", "Rank"]
+    ]
+    .agg(
+        Total_Goals=("Goals", "sum"),
+        Avg_Goals=("Goals", "mean"),
+        Player_Count=("Player Name", "count"),
+        Players=("Player Name", lambda x: ", ".join(x)),
+        Ranks=("Rank", lambda x: ", ".join(map(str, x))),
+    )
+)
+print("\n경기당 평균 득점 기준 통계:")
+print(goals_per_match_stats)
 
 # 그룹별 데이터 분석
 # 1. Goals per Match Group별 평균 득점
