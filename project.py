@@ -1,9 +1,11 @@
+import sys # 인코딩
 import requests # 웹 크롤링
 from bs4 import BeautifulSoup
 import pandas as pd # 데이터셋 분석
-import sys # 인코딩
 import seaborn as sns # 데이터 시각화
 import matplotlib.pyplot as plt
+
+sys.stdout.reconfigure(encoding='utf-8') # 인코딩 설정
 
 url = "https://www.transfermarkt.com/premier-league/torschuetzenliste/wettbewerb/GB1/saison_id/2023/altersklasse/alle/detailpos//plus/1" # 웹 크롤링 주소
 
@@ -23,7 +25,7 @@ table_rows = soup.find_all("tr", {"class": ["odd", "even"]}) # 데이터 테이�
 data = [] # 데이터 수집
 for row in table_rows:
     rank = row.find("td", {"class": "zentriert"}).get_text(strip=True)
-    player_name = row.find("td", {"class": "hauptlink"}).get_text(strip=True) # 이름
+    name = row.find("td", {"class": "hauptlink"}).get_text(strip=True) # 이름
     position = row.find_all("td")[1].find_all("tr")[1].find_all("td")[0].get_text(strip=True) # 포지션
     appearances = int(row.find_all("td")[8].get_text(strip=True)) # 경기 수
     penalty_kicks = int(row.find_all("td")[10].get_text(strip=True)) # 페널티 킥 수
@@ -34,7 +36,7 @@ for row in table_rows:
     
     data.append({ # 데이터 리스트에 추가
         "Rank" : rank,
-        "Player Name": player_name,
+        "Name": name,
         "Position": position,
         "Appearances" : appearances,
         "Penalty kicks" : penalty_kicks,
@@ -47,105 +49,27 @@ for row in table_rows:
 df = pd.DataFrame(data) # DataFrame으로 변환
 df.set_index("Rank", inplace = True) # Rank를 index로 설정
 
-sys.stdout.reconfigure(encoding='utf-8') # 인코딩 설정
+# Position 열을 기준으로 그룹화하여 Centre-Forward 데이터 추출
+grouped_data = df.groupby("Position")  # Position 열 기준 그룹화
+cf_group = grouped_data.get_group("Centre-Forward")  # Centre-Forward 데이터 추출
 
-# 'Rank'를 인덱스에서 열로 복구
-if "Rank" not in df.columns:
-    df.reset_index(inplace=True)
+# Centre-Forward 선수들의 득점 관련 통계량 계산
+cf_stats = cf_group.groupby("Name").agg({
+    "Goals": "sum",                # 득점 총합
+    "Goals per Match": "mean",     # 경기당 평균 득점
+    "Minutes per goal": "mean"     # 득점당 평균 시간
+}).reset_index()
 
-# 'Goals per Appearance' 열이 누락된 경우 재생성
-if "Goals per Appearance" not in df.columns:
-    df["Goals per Appearance"] = df["Goals"] / df["Appearances"]
+# 결과 출력
+print(cf_stats)
 
-# 필드 골 계산
-df["Field Goals"] = df["Goals"] - df["Penalty kicks"]
+# 시각화
+plt.figure(figsize=(12, 5))
 
-# 1. 필드 골 기준 그룹화
-field_goal_stats = (
-    df.groupby("Field Goals")[["Minutes Played", "Player Name", "Rank"]]
-    .agg(
-        Total_Minutes=("Minutes Played", "sum"),
-        Avg_Minutes=("Minutes Played", "mean"),
-        Player_Count=("Player Name", "count"),
-        Players=("Player Name", lambda x: ", ".join(x)),
-        Ranks=("Rank", lambda x: ", ".join(map(str, x))),
-    )
-)
-print("\n필드 골 기준 통계:")
-print(field_goal_stats)
-
-# 2. 득점당 평균 시간 기준 그룹화
-df["Minutes per Goal"] = df["Minutes Played"] / df["Goals"]  # 재확인 및 생성
-
-minutes_per_goal_stats = (
-    df.groupby(pd.cut(df["Minutes per Goal"], bins=5, duplicates="drop"), observed=True)[
-        ["Goals", "Player Name", "Rank"]
-    ]
-    .agg(
-        Total_Goals=("Goals", "sum"),
-        Avg_Goals=("Goals", "mean"),
-        Player_Count=("Player Name", "count"),
-        Players=("Player Name", lambda x: ", ".join(x)),
-        Ranks=("Rank", lambda x: ", ".join(map(str, x))),
-    )
-)
-print("\n득점당 평균 시간 기준 통계:")
-print(minutes_per_goal_stats)
-
-# 3. 경기당 평균 득점 기준 그룹화
-goals_per_match_stats = (
-    df.groupby(pd.cut(df["Goals per Appearance"], bins=5, duplicates="drop"), observed=True)[
-        ["Goals", "Player Name", "Rank"]
-    ]
-    .agg(
-        Total_Goals=("Goals", "sum"),
-        Avg_Goals=("Goals", "mean"),
-        Player_Count=("Player Name", "count"),
-        Players=("Player Name", lambda x: ", ".join(x)),
-        Ranks=("Rank", lambda x: ", ".join(map(str, x))),
-    )
-)
-print("\n경기당 평균 득점 기준 통계:")
-print(goals_per_match_stats)
-
-# 그룹별 데이터 분석
-# 1. Goals per Match Group별 평균 득점
-grouped_goals_per_match = df.groupby("Goals per Match Group", observed=True)["Goals"].mean()
-print("\nGoals per Match Group별 평균 득점:")
-print(grouped_goals_per_match)
-
-# 2. Appearances Group별 총 득점
-grouped_appearances = df.groupby("Appearances Group", observed=True)["Goals"].sum()
-print("\nAppearances Group별 총 득점:")
-print(grouped_appearances)
-
-# 3. Goals Group별 출전 시간 평균
-grouped_goals_time = df.groupby("Goals Group", observed=True)["Minutes Played"].mean()
-print("\nGoals Group별 평균 출전 시간:")
-print(grouped_goals_time)
-
-plt.rcParams['font.family'] = 'Malgun Gothic'  # 한글 폰트 설정
-
-# 그래프 1: Goals per Match Group별 평균 득점 (Seaborn 바 차트)
-plt.figure(figsize=(10, 6))
-sns.barplot(
-    x=grouped_goals_per_match.index,
-    y=grouped_goals_per_match.values,
-    hue=grouped_goals_per_match.index,  # x 변수를 hue로 지정
-    palette="viridis",
-    dodge=False
-)
-plt.title("경기당 평균 득점 그룹별 평균 득점")
-plt.xlabel("Goals per Match Group")
-plt.ylabel("평균 득점")
-plt.legend([], [], frameon=False)  # 불필요한 범례 제거
-plt.show()
-
-# 그래프 2: Appearances Group별 총 득점 (Matplotlib 바 차트)
-plt.figure(figsize=(10, 6))
-grouped_appearances.plot(kind="bar", color="teal")
-plt.title("출전 경기 수 그룹별 총 득점")
-plt.xlabel("Appearances Group")
-plt.ylabel("총 득점")
-plt.xticks(rotation=0)
+# 득점 수 막대그래프
+sns.barplot(data=cf_stats, x='Name', y='Goals')
+plt.title('Total Goals by Centre-Forwards')
+plt.xticks(rotation=45)
+plt.xlabel('Player Name')
+plt.ylabel('Total Goals')
 plt.show()
