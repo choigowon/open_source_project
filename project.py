@@ -50,47 +50,42 @@ for row in table_rows:
 df = pd.DataFrame(data) # DataFrame으로 변환
 #df.set_index("Rank", inplace = True) # Rank를 index로 설정
 
-## Position 열을 기준으로 그룹화하여 Centre-Forward 데이터 추출
-grouped_data = df.groupby("Position")  # Position 열 기준 그룹화
-cf_group = grouped_data.get_group("Centre-Forward")  # Centre-Forward 데이터 추출
+# 포지션별 데이터 그룹화
+grouped = df.groupby("Position")
 
-# 그룹화 데이터에 Goals 추가
-cf_stats = cf_group[["Name", "Goals", "Goals per Match", "Minutes per goal", "Field Goals", "Rank"]].reset_index(drop=True)
+# 통계 분석 및 그래프 그리기
+# 각 포지션별로 'Appearances', 'Field Goals', 'Goals', 'Goals per Match'의 통계 분석
+stat_columns = ["Appearances", "Field Goals", "Goals", "Goals per Match"]
 
-# Goals 기준으로 정렬
-cf_stats = cf_stats.sort_values(by="Goals", ascending=False)
+# 각 포지션별로 통계량 계산
+grouped_stats = grouped[stat_columns].agg(['mean', 'median', 'std'])
 
-# Rank를 index로 설정
-cf_stats.set_index("Rank", inplace=True)
+# 통계량 출력
+print(grouped_stats)
 
-# 결과 출력
-print(cf_stats)
+# 포지션별 평균값으로 시각화
+plt.figure(figsize=(12, 8))
 
-# 시각화 - 이름과 Goals를 X축으로, 나머지 데이터를 Y축으로 설정
-plt.figure(figsize=(12, 5))
-
-# 이름과 Goals를 X축으로 필드골 수 막대그래프
-sns.barplot(data=cf_stats, x='Name', y='Field Goals', order=cf_stats['Name'])
-plt.title('Field Goals by Centre-Forwards (Sorted by Goals)')
+# Appearances, Field Goals, Goals, Goals per Match 그래프 그리기
+plt.subplot(2, 2, 1)
+sns.barplot(x=grouped_stats.index, y=grouped_stats[("Appearances", "mean")], hue=grouped_stats.index, palette="viridis", legend=False)
+plt.title("Average Appearances by Position")
 plt.xticks(rotation=45)
-plt.xlabel('Player Name')
-plt.ylabel('Field Goals')
-plt.show()
 
-# 경기당 평균 득점 vs 이름과 Goals
-plt.figure(figsize=(12, 6))
-sns.barplot(data=cf_stats, x='Name', y='Goals per Match', order=cf_stats['Name'])
-plt.title('Goals per Match by Centre-Forwards (Sorted by Goals)')
+plt.subplot(2, 2, 2)
+sns.barplot(x=grouped_stats.index, y=grouped_stats[("Field Goals", "mean")], hue=grouped_stats.index, palette="viridis", legend=False)
+plt.title("Average Field Goals by Position")
 plt.xticks(rotation=45)
-plt.xlabel('Player Name')
-plt.ylabel('Goals per Match')
-plt.show()
 
-# 득점당 평균 시간 vs 이름과 Goals
-plt.figure(figsize=(12, 6))
-sns.barplot(data=cf_stats, x='Name', y='Minutes per goal', order=cf_stats['Name'])
-plt.title('Minutes per Goal by Centre-Forwards (Sorted by Goals)')
+plt.subplot(2, 2, 3)
+sns.barplot(x=grouped_stats.index, y=grouped_stats[("Goals", "mean")], hue=grouped_stats.index, palette="viridis", legend=False)
+plt.title("Average Goals by Position")
 plt.xticks(rotation=45)
-plt.xlabel('Player Name')
-plt.ylabel('Minutes per Goal')
+
+plt.subplot(2, 2, 4)
+sns.barplot(x=grouped_stats.index, y=grouped_stats[("Goals per Match", "mean")], hue=grouped_stats.index, palette="viridis", legend=False)
+plt.title("Average Goals per Match by Position")
+plt.xticks(rotation=45)
+
+plt.tight_layout()
 plt.show()
