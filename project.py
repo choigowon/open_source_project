@@ -43,33 +43,54 @@ for row in table_rows:
         "Minutes Played": minutes_played,
         "Minutes per goal" : minutes_per_goal,
         "Goals per Match": goals_per_match,
-        "Goals": goals
+        "Goals": goals,
+        "Field Goals": goals - penalty_kicks
     })
 
 df = pd.DataFrame(data) # DataFrame으로 변환
-df.set_index("Rank", inplace = True) # Rank를 index로 설정
+#df.set_index("Rank", inplace = True) # Rank를 index로 설정
 
-# Position 열을 기준으로 그룹화하여 Centre-Forward 데이터 추출
+## Position 열을 기준으로 그룹화하여 Centre-Forward 데이터 추출
 grouped_data = df.groupby("Position")  # Position 열 기준 그룹화
 cf_group = grouped_data.get_group("Centre-Forward")  # Centre-Forward 데이터 추출
 
-# Centre-Forward 선수들의 득점 관련 통계량 계산
-cf_stats = cf_group.groupby("Name").agg({
-    "Goals": "sum",                # 득점 총합
-    "Goals per Match": "mean",     # 경기당 평균 득점
-    "Minutes per goal": "mean"     # 득점당 평균 시간
-}).reset_index()
+# 그룹화 데이터에 Goals 추가
+cf_stats = cf_group[["Name", "Goals", "Goals per Match", "Minutes per goal", "Field Goals", "Rank"]].reset_index(drop=True)
+
+# Goals 기준으로 정렬
+cf_stats = cf_stats.sort_values(by="Goals", ascending=False)
+
+# Rank를 index로 설정
+cf_stats.set_index("Rank", inplace=True)
 
 # 결과 출력
 print(cf_stats)
 
-# 시각화
+# 시각화 - 이름과 Goals를 X축으로, 나머지 데이터를 Y축으로 설정
 plt.figure(figsize=(12, 5))
 
-# 득점 수 막대그래프
-sns.barplot(data=cf_stats, x='Name', y='Goals')
-plt.title('Total Goals by Centre-Forwards')
+# 이름과 Goals를 X축으로 필드골 수 막대그래프
+sns.barplot(data=cf_stats, x='Name', y='Field Goals', order=cf_stats['Name'])
+plt.title('Field Goals by Centre-Forwards (Sorted by Goals)')
 plt.xticks(rotation=45)
 plt.xlabel('Player Name')
-plt.ylabel('Total Goals')
+plt.ylabel('Field Goals')
+plt.show()
+
+# 경기당 평균 득점 vs 이름과 Goals
+plt.figure(figsize=(12, 6))
+sns.barplot(data=cf_stats, x='Name', y='Goals per Match', order=cf_stats['Name'])
+plt.title('Goals per Match by Centre-Forwards (Sorted by Goals)')
+plt.xticks(rotation=45)
+plt.xlabel('Player Name')
+plt.ylabel('Goals per Match')
+plt.show()
+
+# 득점당 평균 시간 vs 이름과 Goals
+plt.figure(figsize=(12, 6))
+sns.barplot(data=cf_stats, x='Name', y='Minutes per goal', order=cf_stats['Name'])
+plt.title('Minutes per Goal by Centre-Forwards (Sorted by Goals)')
+plt.xticks(rotation=45)
+plt.xlabel('Player Name')
+plt.ylabel('Minutes per Goal')
 plt.show()
