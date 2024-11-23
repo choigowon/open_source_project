@@ -46,28 +46,19 @@ for row in table_rows:
     })
 
 df = pd.DataFrame(data) # DataFrame으로 변환
-#df.set_index("Rank", inplace = True) # Rank를 index로 설정
 
 # 포지션별 데이터 그룹화 후 간단한 통계 분석
 grouped = df.groupby("Position")
-position_stats = ["Rank", "Name", "Appearances", "Minutes played", "Minutes per goal", "Goals per Match", "Field Goals"]
-
-top_5_by_position = grouped.apply(
-    lambda x: x.nlargest(5, ['Appearances', 'Minutes played'])
-).reset_index(drop=True)
 
 # 이름 길이 제한 (보기 좋게)
-top_5_by_position['Name'] = top_5_by_position['Name'].str.slice(0, 15)
-
-# 데이터 정렬
-top_5_by_position = top_5_by_position.sort_values(by='Appearances', ascending=False)
+df['Name'] = df['Name'].str.slice(0, 15)
 
 # 그래프 생성
 fig, ax = plt.subplots(figsize=(8, 6))  # 그래프 크기 조정
 
 # Minutes played 막대 그래프 (포지션별 색상)
 sns.barplot(
-    data=top_5_by_position,
+    data=df,
     y='Name',  # y축: 선수 이름
     x='Minutes played',  # x축: 출전 시간
     hue='Position',  # 포지션별 색상 구분
@@ -78,7 +69,7 @@ sns.barplot(
 
 # Appearances 막대 그래프 (검은색, 투명도 조정)
 sns.barplot(
-    data=top_5_by_position,
+    data=df,
     y='Name',  # y축: 선수 이름
     x='Appearances',  # x축: 경기 수
     color='black',  # 막대 색상
@@ -87,7 +78,7 @@ sns.barplot(
 )
 
 # 축 및 레이블 설정
-ax.set_title('Minutes Played and Appearances by Top Players', fontsize=14)
+ax.set_title('Minutes Played and Appearances by Players', fontsize=14)
 ax.set_xlabel('Value', fontsize=12)
 ax.set_ylabel('Player Name', fontsize=12)
 
@@ -99,25 +90,20 @@ ax.legend(handles, labels, title='Position', bbox_to_anchor=(1.05, 1), loc='uppe
 plt.tight_layout()
 plt.show()
 
-# 포지션별로 필드골이 가장 많은 상위 10명의 선수 추출
-top_10_field_goals_by_position = grouped.apply(
-    lambda x: x.nlargest(10, 'Field goals')
-).reset_index(drop=True)
-
 # 시각화 2: 각 포지션에 대한 필드 골과 득점 당 평균 시간 (산점도)
 plt.figure(figsize=(10, 6))
-sns.scatterplot(x='Field goals', y='Minutes per goal', hue='Position', data=top_10_field_goals_by_position, palette="Set2", s=100)
+sns.scatterplot(x='Field goals', y='Minutes per goal', hue='Position', data=df, palette="Set2", s=100)
 
 # 선수 이름 추가
-for i in range(top_10_field_goals_by_position.shape[0]):
+for i in range(df.shape[0]):
     plt.text(
-        top_10_field_goals_by_position['Field goals'].iloc[i], 
-        top_10_field_goals_by_position['Minutes per goal'].iloc[i], 
-        top_10_field_goals_by_position['Name'].iloc[i], 
+        df['Field goals'].iloc[i], 
+        df['Minutes per goal'].iloc[i], 
+        df['Name'].iloc[i], 
         fontsize=9, ha='right', va='bottom'
     )
 
-plt.title("Field Goals vs Minutes per Goal by Position (Top 10 Players)")
+plt.title("Field Goals vs Minutes per Goal by Position")
 plt.xlabel("Field Goals")
 plt.ylabel("Minutes per Goal")
 plt.legend(title='Position', bbox_to_anchor=(1.05, 1), loc='upper left')
@@ -127,7 +113,7 @@ plt.show()
 # 추가 분석: 각 포지션별로 효율성 지표 관계 분석 (Pairplot)
 # Pairplot: 그래프 크기 추가 줄이기
 sns.pairplot(
-    top_10_field_goals_by_position,
+    df,
     vars=['Minutes per goal', 'Goals per match', 'Field goals'],  # 분석할 컬럼
     hue='Position',  # 포지션별 색상 구분
     palette="Set2",  # 색상 팔레트
@@ -136,7 +122,36 @@ sns.pairplot(
 )
 
 # 제목 위치 및 크기 조정
-plt.suptitle("Pairplot of Efficiency Metrics by Position (Top 10 Players)", y=1, fontsize=12)  # 제목 위치 내리기
+plt.suptitle("Pairplot of Efficiency Metrics by Position", y=0.95, fontsize=12)  # 제목 위치 내리기
 plt.tight_layout()  # 레이아웃 조정
 plt.subplots_adjust(top=0.9, right=0.85)  # 제목 위치를 내리고, 오른쪽 여백을 늘림
 plt.show()
+
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score
+import numpy as np
+
+# 불필요한 컬럼 제거 및 결측값 처리
+df_clean = df.dropna(subset=['Goals per match', 'Appearances', 'Minutes played', 'Minutes per goal', 'Field goals'])
+features = ['Appearances', 'Minutes played', 'Minutes per goal', 'Field goals']
+X = df_clean[features]  # 특성
+y = df_clean['Goals per match']  # 타겟 변수
+
+# 학습용 데이터와 테스트용 데이터로 분리
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# 선형 회귀 모델 훈련
+model = LinearRegression()
+model.fit(X_train, y_train)
+
+# 예측
+y_pred = model.predict(X_test)
+
+# 모델 평가
+mse = mean_squared_error(y_test, y_pred)  # 평균 제곱 오차
+rmse = np.sqrt(mse)  # 루트 평균 제곱 오차
+r2 = r2_score(y_test, y_pred)  # 결정계수
+
+print(f"RMSE: {rmse:.3f}")
+print(f"R^2: {r2:.3f}")
