@@ -39,53 +39,104 @@ for row in table_rows:
         "Name": name,
         "Position": position,
         "Appearances" : appearances,
-        "Penalty kicks" : penalty_kicks,
-        "Minutes Played": minutes_played,
+        "Minutes played": round(minutes_played * 1000 / 60, 1), # 시간 단위
         "Minutes per goal" : minutes_per_goal,
-        "Goals per Match": goals_per_match,
-        "Goals": goals,
-        "Field Goals": goals - penalty_kicks
+        "Goals per match": goals_per_match,
+        "Field goals": goals - penalty_kicks
     })
 
 df = pd.DataFrame(data) # DataFrame으로 변환
 #df.set_index("Rank", inplace = True) # Rank를 index로 설정
 
-# 포지션별 데이터 그룹화
+# 포지션별 데이터 그룹화 후 간단한 통계 분석
 grouped = df.groupby("Position")
+position_stats = ["Rank", "Name", "Appearances", "Minutes played", "Minutes per goal", "Goals per Match", "Field Goals"]
 
-# 통계 분석 및 그래프 그리기
-# 각 포지션별로 'Appearances', 'Field Goals', 'Goals', 'Goals per Match'의 통계 분석
-stat_columns = ["Appearances", "Field Goals", "Goals", "Goals per Match"]
+top_5_by_position = grouped.apply(
+    lambda x: x.nlargest(5, ['Appearances', 'Minutes played'])
+).reset_index(drop=True)
 
-# 각 포지션별로 통계량 계산
-grouped_stats = grouped[stat_columns].agg(['mean', 'median', 'std'])
+# 이름 길이 제한 (보기 좋게)
+top_5_by_position['Name'] = top_5_by_position['Name'].str.slice(0, 15)
 
-# 통계량 출력
-print(grouped_stats)
+# 데이터 정렬
+top_5_by_position = top_5_by_position.sort_values(by='Appearances', ascending=False)
 
-# 포지션별 평균값으로 시각화
-plt.figure(figsize=(12, 8))
+# 그래프 생성
+fig, ax = plt.subplots(figsize=(8, 6))  # 그래프 크기 조정
 
-# Appearances, Field Goals, Goals, Goals per Match 그래프 그리기
-plt.subplot(2, 2, 1)
-sns.barplot(x=grouped_stats.index, y=grouped_stats[("Appearances", "mean")], hue=grouped_stats.index, palette="viridis", legend=False)
-plt.title("Average Appearances by Position")
-plt.xticks(rotation=45)
+# Minutes played 막대 그래프 (포지션별 색상)
+sns.barplot(
+    data=top_5_by_position,
+    y='Name',  # y축: 선수 이름
+    x='Minutes played',  # x축: 출전 시간
+    hue='Position',  # 포지션별 색상 구분
+    dodge=False,
+    alpha=0.7,  # 투명도 설정
+    ax=ax
+)
 
-plt.subplot(2, 2, 2)
-sns.barplot(x=grouped_stats.index, y=grouped_stats[("Field Goals", "mean")], hue=grouped_stats.index, palette="viridis", legend=False)
-plt.title("Average Field Goals by Position")
-plt.xticks(rotation=45)
+# Appearances 막대 그래프 (검은색, 투명도 조정)
+sns.barplot(
+    data=top_5_by_position,
+    y='Name',  # y축: 선수 이름
+    x='Appearances',  # x축: 경기 수
+    color='black',  # 막대 색상
+    alpha=0.3,  # 투명도 설정
+    ax=ax
+)
 
-plt.subplot(2, 2, 3)
-sns.barplot(x=grouped_stats.index, y=grouped_stats[("Goals", "mean")], hue=grouped_stats.index, palette="viridis", legend=False)
-plt.title("Average Goals by Position")
-plt.xticks(rotation=45)
+# 축 및 레이블 설정
+ax.set_title('Minutes Played and Appearances by Top Players', fontsize=14)
+ax.set_xlabel('Value', fontsize=12)
+ax.set_ylabel('Player Name', fontsize=12)
 
-plt.subplot(2, 2, 4)
-sns.barplot(x=grouped_stats.index, y=grouped_stats[("Goals per Match", "mean")], hue=grouped_stats.index, palette="viridis", legend=False)
-plt.title("Average Goals per Match by Position")
-plt.xticks(rotation=45)
+# 범례 표시
+handles, labels = ax.get_legend_handles_labels()
+ax.legend(handles, labels, title='Position', bbox_to_anchor=(1.05, 1), loc='upper left')
 
+# 레이아웃 조정 및 출력
 plt.tight_layout()
+plt.show()
+
+# 포지션별로 필드골이 가장 많은 상위 10명의 선수 추출
+top_10_field_goals_by_position = grouped.apply(
+    lambda x: x.nlargest(10, 'Field goals')
+).reset_index(drop=True)
+
+# 시각화 2: 각 포지션에 대한 필드 골과 득점 당 평균 시간 (산점도)
+plt.figure(figsize=(10, 6))
+sns.scatterplot(x='Field goals', y='Minutes per goal', hue='Position', data=top_10_field_goals_by_position, palette="Set2", s=100)
+
+# 선수 이름 추가
+for i in range(top_10_field_goals_by_position.shape[0]):
+    plt.text(
+        top_10_field_goals_by_position['Field goals'].iloc[i], 
+        top_10_field_goals_by_position['Minutes per goal'].iloc[i], 
+        top_10_field_goals_by_position['Name'].iloc[i], 
+        fontsize=9, ha='right', va='bottom'
+    )
+
+plt.title("Field Goals vs Minutes per Goal by Position (Top 10 Players)")
+plt.xlabel("Field Goals")
+plt.ylabel("Minutes per Goal")
+plt.legend(title='Position', bbox_to_anchor=(1.05, 1), loc='upper left')
+plt.tight_layout()
+plt.show()
+
+# 추가 분석: 각 포지션별로 효율성 지표 관계 분석 (Pairplot)
+# Pairplot: 그래프 크기 추가 줄이기
+sns.pairplot(
+    top_10_field_goals_by_position,
+    vars=['Minutes per goal', 'Goals per match', 'Field goals'],  # 분석할 컬럼
+    hue='Position',  # 포지션별 색상 구분
+    palette="Set2",  # 색상 팔레트
+    diag_kind="kde",  # 대각선에 KDE (밀도 그래프)
+    height=2  # 그래프 크기 더 줄이기
+)
+
+# 제목 위치 및 크기 조정
+plt.suptitle("Pairplot of Efficiency Metrics by Position (Top 10 Players)", y=1, fontsize=12)  # 제목 위치 내리기
+plt.tight_layout()  # 레이아웃 조정
+plt.subplots_adjust(top=0.9, right=0.85)  # 제목 위치를 내리고, 오른쪽 여백을 늘림
 plt.show()
