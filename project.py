@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 sys.stdout.reconfigure(encoding='utf-8') # 인코딩 설정
 
-url = "https://www.transfermarkt.com/premier-league/torschuetzenliste/wettbewerb/GB1/saison_id/2023/altersklasse/alle/detailpos//plus/1" # 웹 크롤링 주소
+url = "https://www.transfermarkt.com/premier-league/torschuetzenliste/wettbewerb/GB1/plus/1?saison_id=2023&detailpos=&altersklasse=alle&exclude_penalties=1" # 웹 크롤링 주소
 
 headers = { # User-Agent 설정
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
@@ -28,7 +28,6 @@ for row in table_rows:
     name = row.find("td", {"class": "hauptlink"}).get_text(strip=True) # 이름
     position = row.find_all("td")[1].find_all("tr")[1].find_all("td")[0].get_text(strip=True) # 포지션
     appearances = int(row.find_all("td")[8].get_text(strip=True)) # 경기 수
-    penalty_kicks = int(row.find_all("td")[10].get_text(strip=True)) # 페널티 킥 수
     minutes_played = float(row.find_all("td")[11].get_text(strip=True).replace("'", "")) # 출전 시간
     minutes_per_goal = int(row.find_all("td")[12].get_text(strip=True).replace("'", "")) # 득점 당 평균 시간
     goals_per_match = float(row.find_all("td")[13].get_text(strip=True)) # 경기 당 평균 득점
@@ -39,10 +38,10 @@ for row in table_rows:
         "Name": name,
         "Position": position,
         "Appearances" : appearances,
-        "Hours played": round(minutes_played * 1000 / 60, 1), # 시 단위로 변경
+        "Hours played": round(minutes_played / 60 * (1000 if minutes_played < 10 else 1), 1), # 시 단위로 변경
         "Minutes per goal" : minutes_per_goal,
         "Goals per match": goals_per_match,
-        "Field goals": goals - penalty_kicks # 전체 득점에서 페널티 킥은 제외
+        "Goals" : goals
     })
 
 df = pd.DataFrame(data) # DataFrame으로 변환
@@ -124,7 +123,7 @@ for i in range(df.shape[0]): # 선수 이름 추가
     )
 
 plt.annotate('Increase in Efficiency',  # 텍스트 내용
-    xy=(0.65, 190),  # 화살표 끝점 (효율 증가 방향을 가리킴)
+    xy=(0.65, 180),  # 화살표 끝점 (효율 증가 방향을 가리킴)
     rotation=-35,  # 텍스트 기울기
     va='baseline',  # 텍스트 수직 정렬
     ha='center',  # 텍스트 수평 정렬
@@ -132,8 +131,8 @@ plt.annotate('Increase in Efficiency',  # 텍스트 내용
 )
 
 plt.annotate('',
-             xytext = (0.55, 230),
-             xy = (0.75, 170),
+             xytext = (0.55, 210),
+             xy = (0.75, 160),
              arrowprops=dict(color='black', arrowstyle='->', lw=4)  # 화살표 스타일
 )
 
@@ -154,7 +153,7 @@ import numpy as np
 
 # 데이터 준비
 X = df[['Hours played', 'Appearances', 'Minutes per goal', 'Goals per match', 'Position']] # 특성 변수
-y = df['Field goals']  # 목표 변수
+y = df['Goals']  # 목표 변수
 
 # 훈련 세트와 테스트 세트 분할
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -194,9 +193,9 @@ plt.figure(figsize=(10, 6))
 plt.scatter(y_test, y_pred, color='blue', label='Predicted vs Actual', alpha=0.7)
 plt.plot([min(y_test), max(y_test)], [min(y_test), max(y_test)], color='red', linestyle='--', label='Perfect Prediction')
 
-plt.title('Actual vs Predicted Field Goals', fontsize=14)
-plt.xlabel('Actual Field Goals', fontsize=12)
-plt.ylabel('Predicted Field Goals', fontsize=12)
+plt.title('Actual vs Predicted Goals', fontsize=14)
+plt.xlabel('Actual Goals', fontsize=12)
+plt.ylabel('Predicted Goals', fontsize=12)
 plt.legend(loc='upper left')
 plt.tight_layout()
 plt.show()
