@@ -53,7 +53,7 @@ print(tb) # 데이터셋 출력
 
 grouped = df.groupby("Position") # 포지션별 데이터 그룹화
 
-position_stats = df.groupby('Position').agg({ # 포지션별 통계량 계산
+position_stats = grouped.agg({ # 포지션별 통계량 계산
     'Hours played': ['mean', 'std'],
     'Appearances': ['mean', 'std'],
     'Minutes per goal': ['mean', 'std'],
@@ -123,6 +123,20 @@ for i in range(df.shape[0]): # 선수 이름 추가
         fontsize=9, ha='center', va='bottom'  # 텍스트 위치 조정
     )
 
+plt.annotate('Increase in Efficiency',  # 텍스트 내용
+    xy=(0.65, 190),  # 화살표 끝점 (효율 증가 방향을 가리킴)
+    rotation=-35,  # 텍스트 기울기
+    va='baseline',  # 텍스트 수직 정렬
+    ha='center',  # 텍스트 수평 정렬
+    fontsize=12,  # 텍스트 크기
+)
+
+plt.annotate('',
+             xytext = (0.55, 230),
+             xy = (0.75, 170),
+             arrowprops=dict(color='black', arrowstyle='->', lw=4)  # 화살표 스타일
+)
+
 plt.title("Scoring Efficiency")
 plt.xlabel("Goals per match")
 plt.ylabel("Minutes per Goal")
@@ -152,5 +166,5 @@ mse = mean_squared_error(y_test, y_pred)  # 평균 제곱 오차
 rmse = np.sqrt(mse)  # 루트 평균 제곱 오차
 r2 = r2_score(y_test, y_pred)  # 결정계수
 
-print(f"RMSE: {rmse:.3f}")
+print(f"\nRMSE: {rmse:.3f}")
 print(f"R^2: {r2:.3f}")
