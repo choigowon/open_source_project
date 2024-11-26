@@ -145,26 +145,58 @@ plt.tight_layout()
 plt.show()
 
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
 import numpy as np
 
-df_clean = df.dropna(subset=['Goals per match', 'Appearances', 'Hours played', 'Minutes per goal', 'Field goals']) # 불필요한 컬럼 제거
-features = ['Appearances', 'Hours played', 'Minutes per goal', 'Field goals'] # 결측값
-X = df_clean[features]  # 특성
-y = df_clean['Goals per match']  # 타겟 변수
+# 데이터 준비
+X = df[['Hours played', 'Appearances', 'Minutes per goal', 'Goals per match', 'Position']] # 특성 변수
+y = df['Field goals']  # 목표 변수
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42) # 학습용 데이터와 테스트용 데이터로 분리
+# 훈련 세트와 테스트 세트 분할
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-model = LinearRegression() # 선형 회귀 모델 훈련
+# 데이터 전처리 파이프라인
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', StandardScaler(), ['Hours played', 'Appearances', 'Minutes per goal', 'Goals per match']),  # 수치형 변수 스케일링
+        ('cat', OneHotEncoder(), ['Position'])  # 범주형 변수 인코딩
+    ]
+)
+
+# 모델 파이프라인 (전처리 + 회귀 모델)
+model = Pipeline(steps=[
+    ('preprocessor', preprocessor),
+    ('regressor', LinearRegression()) # 선형 회귀 모델
+])
+
+# 모델 훈련
 model.fit(X_train, y_train)
 
-y_pred = model.predict(X_test) # 예측
+# 예측
+y_pred = model.predict(X_test)
 
 # 모델 평가
-mse = mean_squared_error(y_test, y_pred)  # 평균 제곱 오차
-rmse = np.sqrt(mse)  # 루트 평균 제곱 오차
-r2 = r2_score(y_test, y_pred)  # 결정계수
+mse = mean_squared_error(y_test, y_pred)
+rmse = np.sqrt(mse)
+r2 = r2_score(y_test, y_pred)
 
-print(f"\nRMSE: {rmse:.3f}")
-print(f"R^2: {r2:.3f}")
+print(f"\nMean Squared Error: {mse:.2f}")
+print(f"Root Mean Squared Error: {rmse:.2f}")
+print(f"R^2: {r2:.2f}")
+
+plt.figure(figsize=(10, 6))
+
+# 실제 값과 예측 값 비교
+plt.scatter(y_test, y_pred, color='blue', label='Predicted vs Actual', alpha=0.7)
+plt.plot([min(y_test), max(y_test)], [min(y_test), max(y_test)], color='red', linestyle='--', label='Perfect Prediction')
+
+plt.title('Actual vs Predicted Field Goals', fontsize=14)
+plt.xlabel('Actual Field Goals', fontsize=12)
+plt.ylabel('Predicted Field Goals', fontsize=12)
+plt.legend(loc='upper left')
+plt.tight_layout()
+plt.show()
